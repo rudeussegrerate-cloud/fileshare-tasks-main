@@ -26,25 +26,41 @@ drive the movement costs:
 Everything is written in object-oriented Python 3.10+, fully typed
 (`mypy --strict` passes) and `flake8` compliant. No graph library
 (`networkx`, `graphlib`, ...) is used: the graph structure is
-implemented from scratch in `network.py`.
+implemented from scratch in `network.py`. More generally, no
+ready-made algorithmic object is used anywhere: `Counter`, `heapq`,
+`dataclasses`, `Enum`, `argparse` and regular expressions are all
+replaced by hand made equivalents (`datastructures.py`, `gui.py`,
+`zone.py`, `main.py`, `parser.py`) built only with plain lists,
+dicts, tuples and strings.
 
 ## Instructions
 
-### Install
+### Install (Poetry)
+
+The project is managed with **Poetry** (`pyproject.toml` +
+`poetry.lock`):
 
 ```sh
-make install
+make install          # poetry install: pygame + flake8 + mypy + pytest
 ```
 
-installs `flake8`, `mypy` and `pytest` from `requirements.txt`.
+Every `make` rule runs through `poetry run`, inside the dedicated
+virtual environment. A plain `pip` fallback exists for environments
+without Poetry:
+
+```sh
+make pip-install      # python3 -m pip install -r requirements.txt
+```
 
 ### Run
 
 ```sh
 make run MAP=maps/easy_1.map        # raw output (one line per turn)
+make gui MAP=maps/medium_1.map      # pygame window (implies a solve)
 python3 main.py maps/medium_3.map --stats   # raw output + metrics
 python3 main.py maps/easy_3.map --visual    # colored turn-by-turn view
 python3 main.py maps/easy_3.map --animate   # animated network snapshots
+python3 main.py maps/easy_3.map --gui       # pygame window from the CLI
 python3 main.py maps/easy_3.map --check     # replay and validate rules
 ```
 
@@ -68,9 +84,9 @@ make lint          # flake8 . && mypy . --warn-return-any --warn-unused-ignores 
                    #   --ignore-missing-imports --disallow-untyped-defs \
                    #   --check-untyped-defs
 make lint-strict   # flake8 . && mypy . --strict
-make test          # pytest unit tests (parser, pathfinding, simulation)
+make test          # pytest unit tests (parser, pathfinding, simulation, gui)
 make debug MAP=maps/easy_1.map   # run inside pdb
-make clean         # remove caches (__pycache__, .mypy_cache, ...)
+make clean         # remove caches, .venv and build artifacts
 ```
 
 ## Architecture and algorithm choices
@@ -90,6 +106,8 @@ make clean         # remove caches (__pycache__, .mypy_cache, ...)
 | `simulation.py`   | turn engine, conflict repair, waiting, transits       |
 | `validator.py`    | independent replay of the rules (used by `--check`)   |
 | `visualizer.py`   | colored terminal output, snapshots, metrics           |
+| `gui.py`          | pygame window: network map, drones turn by turn       |
+| `datastructures.py` | hand made `MinHeap`, `Multiset`, `link_key`, sorts  |
 | `drone.py`        | per-drone state (position, path, transit, delivery)   |
 | `errors.py`       | `ParseError`, `SimulationError`, integrity errors     |
 
@@ -159,6 +177,22 @@ a snapshot of all zones (`[ ]` normal, `[X]` blocked, `[!]` restricted,
 and the effect of capacities are directly visible. A summary at the end
 reports the secondary metrics of the subject: total turns, total moves,
 average turns per drone and total path cost.
+
+### Graphical simulation (pygame)
+
+`--gui` opens a real `pygame` window replaying the whole simulation:
+
+every zone is drawn as a disk at its map coordinates (colored by
+`color=`, otherwise by zone type; `S`/`E` letters for the start and end
+hubs, type icons inside), connections are drawn as lines, and drones
+are small disks moving from zone to zone at each turn (orange while in
+2-turn transit over a connection). Controls: `SPACE` play/pause,
+`RIGHT`/`LEFT` step one turn forward/backward, `ESC` quit; the window
+also plays automatically from the first turn. pygame is imported
+lazily: all other modes and the whole test suite keep working on a
+machine without pygame (a clear error message then suggests
+`make install` or `--visual`), and the pure `GuiRenderer` behind the
+window is unit tested headlessly.
 
 ## Performance benchmarks
 

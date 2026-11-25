@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datastructures import link_key
+
 
 class Connection:
     """A bidirectional connection between two zones.
@@ -33,9 +35,9 @@ class Connection:
         """Return the traversal limit (default 1)."""
         return self.max_link_capacity if self.max_link_capacity is not None else 1
 
-    def key(self) -> frozenset[str]:
+    def key(self) -> tuple[str, str]:
         """Return a hashable key used to detect duplicate connections."""
-        return frozenset((self.zone_a, self.zone_b))
+        return link_key(self.zone_a, self.zone_b)
 
     def other(self, zone: str) -> str:
         """Return the zone at the other end of this connection."""

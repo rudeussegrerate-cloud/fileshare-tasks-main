@@ -1,31 +1,39 @@
 MAP ?= maps/easy_1.map
+RUN = poetry run python3
 
-.PHONY: all install run debug clean lint lint-strict test
+.PHONY: all install run gui debug clean lint lint-strict test pip-install
 
 all: run
 
 install:
+	poetry install
+
+pip-install:
 	python3 -m pip install -r requirements.txt
 
 run:
-	python3 main.py $(MAP)
+	$(RUN) main.py $(MAP)
+
+gui:
+	$(RUN) main.py $(MAP) --gui
 
 debug:
-	python3 -m pdb main.py $(MAP)
+	$(RUN) -m pdb main.py $(MAP)
 
 lint:
-	flake8 .
-	mypy . --warn-return-any --warn-unused-ignores \
+	poetry run flake8 .
+	poetry run mypy . --warn-return-any --warn-unused-ignores \
 		--ignore-missing-imports \
 		--disallow-untyped-defs --check-untyped-defs
 
 lint-strict:
-	flake8 .
-	mypy . --strict
+	poetry run flake8 .
+	poetry run mypy . --strict
 
 test:
-	python3 -m pytest tests/ -q
+	poetry run pytest tests/ -q
 
 clean:
-	rm -rf __pycache__ .mypy_cache .pytest_cache tests/__pycache__
+	rm -rf __pycache__ .mypy_cache .pytest_cache tests/__pycache__ .venv dist
 	find . -type d -name "__pycache__" -exec rm -rf {} +
+	find . -type f -name "*.pyc" -delete

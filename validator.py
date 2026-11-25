@@ -8,20 +8,23 @@ the test suite and by the `--check` option.
 
 from __future__ import annotations
 
-from collections import Counter
-from dataclasses import dataclass
-
 from connection import Connection
+from datastructures import Multiset, link_key
 from instance import Instance
 from network import ConnectionKey
 
 
-@dataclass
 class Flight:
-    """A drone currently traversing a connection (2-turn transit)."""
+    """A drone currently traversing a connection (2-turn transit).
 
-    link: ConnectionKey
-    destination: str
+    Attributes:
+        link: canonical key of the traversed connection.
+        destination: restricted zone reached at the landing turn.
+    """
+
+    def __init__(self, link: ConnectionKey, destination: str) -> None:
+        self.link = link
+        self.destination = destination
 
 
 class ValidationReport:
@@ -55,11 +58,9 @@ class SimulationValidator:
             for drone_id in range(1, self.instance.nb_drones + 1)
         }
         flights: dict[int, Flight] = {}
-        occupancy: Counter[str] = Counter(
-            {self.instance.start: self.instance.nb_drones}
-        )
+        occupancy = Multiset[str]({self.instance.start: self.instance.nb_drones})
         for turn_no, moves in enumerate(turns, start=1):
-            link_use: Counter[ConnectionKey] = Counter()
+            link_use = Multiset[ConnectionKey]()
             seen: set[int] = set()
             for token in moves:
                 drone_id, rest = self._split(token, turn_no, report)
@@ -125,16 +126,15 @@ class SimulationValidator:
         parts = name.split("-")
         if len(parts) != 2:
             return None
-        key: ConnectionKey = frozenset(parts)
-        return self.network.connections.get(key)
+        return self.network.connections.get(link_key(parts[0], parts[1]))
 
     def _walk(
         self,
         drone_id: int,
         position: dict[int, str],
         destination: str,
-        occupancy: Counter[str],
-        link_use: Counter[ConnectionKey],
+        occupancy: Multiset[str],
+        link_use: Multiset[ConnectionKey],
         turn_no: int,
         report: ValidationReport,
     ) -> None:
@@ -153,19 +153,19 @@ class SimulationValidator:
                 f"'{destination}'"
             )
             return
-        occupancy[source] -= 1
-        occupancy[destination] += 1
+        occupancy.remove(source)
+        occupancy.add(destination)
         position[drone_id] = destination
-        link_use[frozenset((source, destination))] += 1
+        link_use.add(link_key(source, destination))
 
     def _board(
         self,
         drone_id: int,
         position: dict[int, str],
         connection_name: str,
-        occupancy: Counter[str],
+        occupancy: Multiset[str],
         flights: dict[int, Flight],
-        link_use: Counter[ConnectionKey],
+        link_use: Multiset[ConnectionKey],
         turn_no: int,
         report: ValidationReport,
     ) -> None:
@@ -190,16 +190,16 @@ class SimulationValidator:
                 f"'{destination}'"
             )
             return
-        occupancy[source] -= 1
+        occupancy.remove(source)
         flights[drone_id] = Flight(connection.key(), destination)
-        link_use[connection.key()] += 1
+        link_use.add(connection.key())
 
     def _land(
         self,
         drone_id: int,
         flight: Flight,
         destination: str,
-        occupancy: Counter[str],
+        occupancy: Multiset[str],
         position: dict[int, str],
         turn_no: int,
         report: ValidationReport,
@@ -211,13 +211,13 @@ class SimulationValidator:
                 f"instead of '{flight.destination}'"
             )
             return
-        occupancy[destination] += 1
+        occupancy.add(destination)
         position[drone_id] = destination
 
     def _check_occupancy(
         self,
         turn_no: int,
-        occupancy: Counter[str],
+        occupancy: Multiset[str],
         report: ValidationReport,
     ) -> None:
         """Check zone capacities at the end of a turn."""
@@ -235,7 +235,7 @@ class SimulationValidator:
     def _check_links(
         self,
         turn_no: int,
-        link_use: Counter[ConnectionKey],
+        link_use: Multiset[ConnectionKey],
         report: ValidationReport,
     ) -> None:
         """Check connection capacities for one turn."""

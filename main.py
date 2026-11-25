@@ -1,60 +1,88 @@
 """Entry point of the Fly-in project.
 
 Usage:
-    python3 main.py <map_file> [--visual] [--animate] [--stats] [--check]
+    python3 main.py <map_file> [--visual] [--animate] [--gui] [--stats]
+                    [--check]
 
 The standard output is the raw simulation (one line per turn, moves
 space separated), exactly as required by the subject. Optional flags
-add the colored visual representation, animations and metrics.
+add the colored terminal view, the pygame window, animations and
+metrics. The command line interface is hand made (no argparse).
 """
 
 from __future__ import annotations
 
-import argparse
 import sys
 
 from errors import FlyInError
+from gui import GuiUnavailable, launch_graphical_simulation
 from parser import Parser
 from simulation import Simulator
 from validator import SimulationValidator
 from visualizer import Visualizer
 
+USAGE = (
+    "usage: main.py <map_file> [--visual] [--animate] [--gui] "
+    "[--stats] [--check]"
+)
 
-def build_argument_parser() -> argparse.ArgumentParser:
-    """Build the command line interface."""
-    argument_parser = argparse.ArgumentParser(
-        prog="fly-in",
-        description="Route drones through a zone network.",
-    )
-    argument_parser.add_argument("map_file", help="path to the map file")
-    argument_parser.add_argument(
-        "--visual",
-        action="store_true",
-        help="colored turn by turn view of the simulation",
-    )
-    argument_parser.add_argument(
-        "--animate",
-        action="store_true",
-        help="animated network snapshots (implies --visual)",
-    )
-    argument_parser.add_argument(
-        "--stats",
-        action="store_true",
-        help="print secondary metrics at the end",
-    )
-    argument_parser.add_argument(
-        "--check",
-        action="store_true",
-        help="replay and validate the simulation before printing it",
-    )
-    return argument_parser
+
+class UsageError(FlyInError):
+    """Raised when command line arguments are invalid."""
+
+
+class CommandLineArguments:
+    """Hand made argument holder (replaces argparse)."""
+
+    def __init__(self) -> None:
+        self.map_file: str | None = None
+        self.visual = False
+        self.animate = False
+        self.gui = False
+        self.stats = False
+        self.check = False
+
+
+def parse_arguments(tokens: list[str]) -> CommandLineArguments:
+    """Parse the command line tokens manually.
+
+    Raises:
+        UsageError: on any unknown, duplicate or missing argument.
+    """
+    arguments = CommandLineArguments()
+    for token in tokens:
+        if token == "--animate":
+            arguments.animate = True
+        elif token == "--visual":
+            arguments.visual = True
+        elif token == "--gui":
+            arguments.gui = True
+        elif token == "--stats":
+            arguments.stats = True
+        elif token == "--check":
+            arguments.check = True
+        elif token.startswith("--"):
+            raise UsageError(f"unknown option '{token}'")
+        elif arguments.map_file is None:
+            arguments.map_file = token
+        else:
+            raise UsageError(f"unexpected argument '{token}'")
+    if arguments.map_file is None:
+        raise UsageError("missing map file argument")
+    return arguments
 
 
 def run(argv: list[str] | None = None) -> int:
     """Run the program and return the process exit code."""
-    arguments = build_argument_parser().parse_args(argv)
+    tokens = list(sys.argv[1:]) if argv is None else list(argv)
     try:
-        instance = Parser().parse_file(arguments.map_file)
+        arguments = parse_arguments(tokens)
+    except UsageError as error:
+        print(f"ERROR: {error}", file=sys.stderr)
+        print(USAGE, file=sys.stderr)
+        return 1
+    try:
+        instance = Parser().parse_file(arguments.map_file or "")
         instance.validate_topology()
         result = Simulator(instance).run()
         if arguments.check:
@@ -68,6 +96,14 @@ def run(argv: list[str] | None = None) -> int:
             return 0
         if arguments.visual:
             Visualizer(instance).render_turns(result, animate=False)
+            return 0
+        if arguments.gui:
+            try:
+                launch_graphical_simulation(instance, result)
+            except GuiUnavailable as error:
+                print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            Visualizer(instance, use_color=False).render_summary(result)
             return 0
         for moves in result.turns:
             print(" ".join(moves))

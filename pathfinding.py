@@ -5,20 +5,19 @@ Implements a Dijkstra search over the zone graph with:
   * a lexicographic tie-break preferring 'priority' zones,
   * support for cost penalties and forbidden links, used by the
     path diversification strategy.
+
+The priority queue is the hand made MinHeap of `datastructures.py`.
 """
 
 from __future__ import annotations
 
-import heapq
-from dataclasses import dataclass, field
-
+from datastructures import MinHeap, link_key
 from errors import SimulationError
 from network import Network
 
-HeapKey = tuple[int, int, int]
+HeapKey = tuple[float, int, int]
 
 
-@dataclass
 class PenaltyState:
     """Extra costs and forbidden links applied to a search.
 
@@ -28,9 +27,21 @@ class PenaltyState:
         forbidden_links: links that must not be used at all.
     """
 
-    zone_penalty: dict[str, int] = field(default_factory=dict)
-    link_penalty: dict[frozenset[str], int] = field(default_factory=dict)
-    forbidden_links: set[frozenset[str]] = field(default_factory=set)
+    def __init__(
+        self,
+        zone_penalty: dict[str, int] | None = None,
+        link_penalty: dict[tuple[str, str], int] | None = None,
+        forbidden_links: set[tuple[str, str]] | None = None,
+    ) -> None:
+        self.zone_penalty: dict[str, int] = (
+            dict(zone_penalty) if zone_penalty is not None else {}
+        )
+        self.link_penalty: dict[tuple[str, str], int] = (
+            dict(link_penalty) if link_penalty is not None else {}
+        )
+        self.forbidden_links: set[tuple[str, str]] = (
+            set(forbidden_links) if forbidden_links is not None else set()
+        )
 
 
 class ShortestPathFinder:
@@ -68,25 +79,29 @@ class ShortestPathFinder:
         if not self.network.get_zone(target).enterable:
             return None
         best: dict[str, HeapKey] = {source: (0, 0, 0)}
-        queue: list[tuple[HeapKey, str, int]] = [((0, 0, 0), source, 0)]
+        queue = MinHeap()
+        queue.push((0, 0, 0), source)
         came_from: dict[str, tuple[str, int]] = {}
-        hops = 0
-        while queue:
-            key, current, current_hops = heapq.heappop(queue)
+        while not queue.is_empty():
+            popped = queue.pop()
+            if popped is None:
+                break
+            key, current = popped
             if key > best.get(current, (0, 0, 0)):
                 continue
             if current == target:
                 break
+            current_hops = key[2]
             for connection in self.network.neighbours(current):
                 neighbour = connection.other(current)
-                link_key = connection.key()
-                if link_key in state.forbidden_links:
+                link = connection.key()
+                if link in state.forbidden_links:
                     continue
                 if not self.network.get_zone(neighbour).enterable:
                     continue
                 cost = self.step_cost(current, neighbour)
                 extra = state.zone_penalty.get(neighbour, 0)
-                extra += state.link_penalty.get(link_key, 0)
+                extra += state.link_penalty.get(link, 0)
                 priority_flag = 0 if (
                     self.network.get_zone(neighbour).zone_type.value
                     == "priority"
@@ -100,20 +115,16 @@ class ShortestPathFinder:
                     continue
                 best[neighbour] = next_key
                 came_from[neighbour] = (current, cost)
-                heapq.heappush(
-                    queue, (next_key, neighbour, current_hops + 1)
-                )
-            hops += 1
+                queue.push(next_key, neighbour)
         if target not in came_from:
             return None
-        return self._reconstruct(came_from, source, target, hops)
+        return self._reconstruct(came_from, source, target)
 
     @staticmethod
     def _reconstruct(
         came_from: dict[str, tuple[str, int]],
         source: str,
         target: str,
-        _hops: int,
     ) -> list[str]:
         """Walk the predecessor chain backwards from the target."""
         path: list[str] = [target]
@@ -126,7 +137,6 @@ class ShortestPathFinder:
         return path
 
 
-@dataclass
 class PathOption:
     """A candidate route between the start and end hubs.
 
@@ -137,16 +147,15 @@ class PathOption:
             in parallel, capped by zone and link capacities.
     """
 
-    zones: list[str]
-    cost: int
-    lanes: int
+    def __init__(self, zones: list[str], cost: int, lanes: int) -> None:
+        self.zones = zones
+        self.cost = cost
+        self.lanes = lanes
 
     @property
-    def links(self) -> list[frozenset[str]]:
-        """Return the frozenset keys of every link on the path."""
-        return [
-            frozenset((a, b)) for a, b in zip(self.zones, self.zones[1:])
-        ]
+    def links(self) -> list[tuple[str, str]]:
+        """Return the canonical keys of every link on the path."""
+        return [link_key(a, b) for a, b in zip(self.zones, self.zones[1:])]
 
 
 class PathPlanner:
@@ -185,8 +194,9 @@ class PathPlanner:
                 if conflict is None:
                     path = candidate
                     break
-                penalties.link_penalty[frozenset(conflict)] = (
-                    penalties.link_penalty.get(frozenset(conflict), 0)
+                conflicting_link = link_key(conflict[0], conflict[1])
+                penalties.link_penalty[conflicting_link] = (
+                    penalties.link_penalty.get(conflicting_link, 0)
                     + len(self.network.zones) * self.PENALTY
                 )
             if path is None or tuple(path) in seen:
@@ -245,7 +255,7 @@ class PathPlanner:
                 penalties.zone_penalty.get(zone_name, 0) + self.PENALTY
             )
         for a, b in zip(path, path[1:]):
-            key = frozenset((a, b))
+            key = link_key(a, b)
             penalties.link_penalty[key] = (
                 penalties.link_penalty.get(key, 0) + self.PENALTY
             )

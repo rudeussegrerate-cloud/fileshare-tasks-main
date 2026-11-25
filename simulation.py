@@ -13,10 +13,8 @@ Scheduling principles (see the subject):
 
 from __future__ import annotations
 
-from collections import Counter
-from dataclasses import dataclass, field
-
 from connection import Connection
+from datastructures import Multiset, sort_by
 from drone import Drone, Transit
 from errors import SimulationError, SimulationIntegrityError
 from instance import Instance
@@ -33,7 +31,6 @@ Action = tuple[str, str]
 """A committed action: ("zone", zone_name) or ("link", connection)."""
 
 
-@dataclass
 class SimulationResult:
     """Outcome of a full simulation.
 
@@ -44,10 +41,17 @@ class SimulationResult:
         total_path_cost: sum of the costs of the assigned paths.
     """
 
-    turns: list[list[str]] = field(default_factory=list)
-    assignments: list[list[str]] = field(default_factory=list)
-    arrival_turns: dict[int, int] = field(default_factory=dict)
-    total_path_cost: int = 0
+    def __init__(
+        self,
+        assignments: list[list[str]] | None = None,
+        total_path_cost: int = 0,
+    ) -> None:
+        self.turns: list[list[str]] = []
+        self.assignments: list[list[str]] = (
+            list(assignments) if assignments is not None else []
+        )
+        self.arrival_turns: dict[int, int] = {}
+        self.total_path_cost = total_path_cost
 
     @property
     def total_turns(self) -> int:
@@ -57,14 +61,20 @@ class SimulationResult:
     @property
     def total_moves(self) -> int:
         """Total number of individual drone moves."""
-        return sum(len(moves) for moves in self.turns)
+        total = 0
+        for moves in self.turns:
+            total += len(moves)
+        return total
 
     @property
     def average_turns_per_drone(self) -> float:
         """Average delivery turn over all drones."""
         if not self.arrival_turns:
             return 0.0
-        return sum(self.arrival_turns.values()) / len(self.arrival_turns)
+        total = 0
+        for turn in self.arrival_turns.values():
+            total += turn
+        return total / len(self.arrival_turns)
 
 
 class Simulator:
@@ -106,9 +116,7 @@ class Simulator:
     # ------------------------------------------------------------------
     def _simulate(self, drones: list[Drone], result: SimulationResult) -> None:
         """Run turns until every drone is delivered."""
-        occupancy: Counter[str] = Counter(
-            {self.instance.start: len(drones)}
-        )
+        occupancy = Multiset[str]({self.instance.start: len(drones)})
         longest = max(
             (self._path_cost(drone.path) for drone in drones), default=1
         )
@@ -124,16 +132,16 @@ class Simulator:
             result.turns.append(self._run_turn(drones, occupancy, turn))
             self._refresh_occupancy(occupancy, drones)
             self._try_replan(drones, turn)
-        result.arrival_turns = {
-            drone.drone_id: delivered
-            for drone in drones
-            if (delivered := drone.arrival_turn) is not None
-        }
+        arrival_turns: dict[int, int] = {}
+        for drone in drones:
+            if drone.arrival_turn is not None:
+                arrival_turns[drone.drone_id] = drone.arrival_turn
+        result.arrival_turns = arrival_turns
 
     def _run_turn(
         self,
         drones: list[Drone],
-        occupancy: Counter[str],
+        occupancy: Multiset[str],
         turn: int,
     ) -> list[str]:
         """Execute one simulation turn and return its move tokens."""
@@ -143,7 +151,11 @@ class Simulator:
             if drone.transit is None and not drone.is_delivered()
         ]
         candidates = self._decide_all(waiting)
-        committed = self._repair(dict(candidates), occupancy, waiting)
+        committed = self._repair(
+            {drone_id: action for drone_id, action in candidates},
+            occupancy,
+            waiting,
+        )
         landing_tokens = [
             f"D{drone.drone_id}-{drone.transit.destination}"
             for drone in landings if drone.transit is not None
@@ -168,17 +180,13 @@ class Simulator:
         return landing_tokens + moves
 
     def _refresh_occupancy(
-        self, occupancy: Counter[str], drones: list[Drone]
+        self, occupancy: Multiset[str], drones: list[Drone]
     ) -> None:
         """Rebuild zone occupancy from the current drone positions."""
         occupancy.clear()
-        occupancy.update(
-            Counter(
-                drone.position
-                for drone in drones
-                if drone.transit is None
-            )
-        )
+        for drone in drones:
+            if drone.transit is None:
+                occupancy.add(drone.position)
 
     def _collect_landings(
         self, drones: list[Drone], turn: int
@@ -208,9 +216,9 @@ class Simulator:
     @staticmethod
     def _move_order(waiting: list[Drone]) -> list[Drone]:
         """Sort drones: the farthest from the goal moves first."""
-        return sorted(
+        return sort_by(
             waiting,
-            key=lambda drone: (
+            lambda drone: (
                 drone.target_index - len(drone.path),
                 drone.drone_id,
             ),
@@ -240,7 +248,7 @@ class Simulator:
     def _repair(
         self,
         committed: dict[int, Action],
-        occupancy: Counter[str],
+        occupancy: Multiset[str],
         waiting: list[Drone],
     ) -> dict[int, Action]:
         """Drop conflicting moves, lowest priority drone first.
@@ -260,40 +268,42 @@ class Simulator:
 
     def _project(
         self,
-        occupancy: Counter[str],
+        occupancy: Multiset[str],
         committed: dict[int, Action],
         by_id: dict[int, Drone],
-    ) -> Counter[str]:
+    ) -> Multiset[str]:
         """Return the end-of-turn occupancy implied by committed moves."""
-        occ = Counter(occupancy)
+        occ = Multiset[str](occupancy.snapshot())
         for drone_id, action in committed.items():
             drone = by_id[drone_id]
-            occ[drone.position] -= 1
+            occ.remove(drone.position)
             if action[0] == "zone":
-                occ[action[1]] += 1
+                occ.add(action[1])
         return occ
 
     def _count_landers(
         self, committed: dict[int, Action], by_id: dict[int, Drone]
-    ) -> Counter[str]:
+    ) -> Multiset[str]:
         """Transits initiated this turn, grouped by landing zone."""
-        landers: Counter[str] = Counter()
+        landers = Multiset[str]()
         for drone_id, action in committed.items():
             if action[0] != "link":
                 continue
             drone = by_id[drone_id]
-            landers[drone.path[drone.target_index]] += 1
+            landers.add(drone.path[drone.target_index])
         return landers
 
     def _find_violation(
         self,
         committed: dict[int, Action],
         by_id: dict[int, Drone],
-        occ: Counter[str],
-        landers: Counter[str],
+        occ: Multiset[str],
+        landers: Multiset[str],
     ) -> int | None:
         """Return the drone id of the move to cancel, or None."""
-        order = sorted(committed, key=lambda i: self._drop_key(by_id, i))
+        order = sort_by(
+            list(committed), lambda i: self._drop_key(by_id, i)
+        )
         for drone_id in order:
             drone = by_id[drone_id]
             kind, target = committed[drone_id]
@@ -301,15 +311,15 @@ class Simulator:
                 target if kind == "zone"
                 else drone.path[drone.target_index]
             )
+            capacity = self.network.get_zone(destination).capacity
             if kind == "link":
-                capacity = self.network.get_zone(destination).capacity
                 if capacity is not None and (
-                    occ[destination] + landers[destination] > capacity
+                    occ.count(destination) + landers.count(destination)
+                    > capacity
                 ):
                     return drone_id
             else:
-                capacity = self.network.get_zone(destination).capacity
-                if capacity is not None and occ[destination] > capacity:
+                if capacity is not None and occ.count(destination) > capacity:
                     return drone_id
             link = self._link_of(drone, destination)
             if link is not None and (
@@ -382,20 +392,22 @@ class Simulator:
 
     def _path_cost(self, path: list[str]) -> int:
         """Total movement cost of a zone path."""
-        return sum(
-            self.network.get_zone(zone).entry_cost for zone in path[1:]
-        )
+        total = 0
+        for zone_name in path[1:]:
+            total += self.network.get_zone(zone_name).entry_cost
+        return total
 
     # ------------------------------------------------------------------
     # Anti deadlock replanning
     # ------------------------------------------------------------------
     def _try_replan(self, drones: list[Drone], turn: int) -> None:
         """Re-route drones blocked for several consecutive turns."""
-        blocked: Counter[str] = Counter(
-            drone.position
-            for drone in drones
-            if self._needs_replan(drone, turn)
-        )
+        blocked: dict[str, int] = {}
+        for drone in drones:
+            if self._needs_replan(drone, turn):
+                blocked[drone.position] = (
+                    blocked.get(drone.position, 0) + 1
+                )
         state = PenaltyState(
             zone_penalty={
                 zone: count * self.STUCK_THRESHOLD

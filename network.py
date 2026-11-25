@@ -7,10 +7,12 @@ forbidden by the subject): a plain adjacency structure.
 from __future__ import annotations
 
 from connection import Connection
+from datastructures import link_key
 from errors import ParseError, SimulationError
 from zone import Zone
 
-ConnectionKey = frozenset[str]
+ConnectionKey = tuple[str, str]
+"""Canonical undirected key of a connection, normalized by link_key()."""
 
 
 class Network:
@@ -43,11 +45,11 @@ class Network:
                     f"connection references undefined zone '{zone_name}'",
                     line_no,
                 )
-        key = connection.key()
-        if len(key) != 2:
+        if connection.zone_a == connection.zone_b:
             raise ParseError(
                 "connection must link two distinct zones", line_no
             )
+        key = connection.key()
         if key in self.connections:
             existing = self.connections[key]
             raise ParseError(
@@ -64,7 +66,7 @@ class Network:
 
     def get_connection(self, zone_a: str, zone_b: str) -> Connection:
         """Return the connection between two zones, if any."""
-        key: ConnectionKey = frozenset((zone_a, zone_b))
+        key = link_key(zone_a, zone_b)
         connection = self.connections.get(key)
         if connection is None:
             raise SimulationError(
@@ -83,7 +85,7 @@ class Network:
 
     def is_adjacent(self, zone_a: str, zone_b: str) -> bool:
         """Return True when both zones are directly connected."""
-        return frozenset((zone_a, zone_b)) in self.connections
+        return link_key(zone_a, zone_b) in self.connections
 
     @property
     def zone_count(self) -> int:

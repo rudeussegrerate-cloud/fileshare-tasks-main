@@ -1,0 +1,22 @@
+[project]
+name = "fly-in"
+version = "1.0.0"
+description = "Fly-in: 42 curriculum project - route a drone fleet through a zone network."
+authors = [{ name = "tusandri", email = "tusandri@student.42.fr" }]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pygame>=2.5",
+]
+
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.group.dev.dependencies]
+flake8 = "^7.1.1"
+mypy = ">=1.13"
+pytest = ">=8.3"
+
+[build-system]
+requires = ["poetry-core>=2.0"]
+build-backend = "poetry.core.masonry.api"
