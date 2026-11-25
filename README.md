@@ -45,8 +45,10 @@ make install          # poetry install: pygame + flake8 + mypy + pytest
 ```
 
 Every `make` rule runs through `poetry run`, inside the dedicated
-virtual environment. A plain `pip` fallback exists for environments
-without Poetry:
+virtual environment. If Poetry is missing or broken on the machine,
+every rule transparently falls back to plain `python3`, and
+`make install` runs `pip install -r requirements.txt` instead — so
+the project always works. The fallback is also available manually:
 
 ```sh
 make pip-install      # python3 -m pip install -r requirements.txt
