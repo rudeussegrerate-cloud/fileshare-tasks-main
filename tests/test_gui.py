@@ -65,3 +65,15 @@ def test_congested_map_has_a_canvas() -> None:
     renderer = GuiRenderer(instance)
     width, height = renderer.canvas_size()
     assert width > 0 and height > 0
+
+
+def test_movement_sets_match_transitions() -> None:
+    instance = Parser().parse(sample_maps.LINEAR_MAP)
+    renderer = GuiRenderer(instance)
+    result = solve_map("easy_1.map")
+    movements = renderer.movement_sets(result)
+    assert len(movements) == result.total_turns
+    states = renderer.replay_states(result)
+    for index, ids in enumerate(movements):
+        for drone_id in ids:
+            assert states[index][drone_id] != states[index + 1][drone_id]

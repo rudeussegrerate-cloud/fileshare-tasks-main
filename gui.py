@@ -19,8 +19,7 @@ from simulation import SimulationResult
 
 WINDOW_CAPTION = "Fly-in - graphical simulation"
 FOOTER_TEXT = (
-    "[SPACE] play/pause  [RIGHT] next turn  [LEFT] previous turn  "
-    "[ESC] quit"
+    "[SPACE] play/pause  [LEFT/RIGHT] step  [UP/DOWN] speed  [ESC] quit"
 )
 TWO_PI = 2 * 3.141592653589793
 
@@ -39,6 +38,7 @@ class ZonePalette:
     DRONE = (240, 244, 248)
     DRONE_EDGE = (30, 34, 44)
     IN_FLIGHT = (255, 170, 60)
+    MOVED = (96, 226, 140)
 
     NAMED_COLORS: dict[str, tuple[int, int, int]] = {
         "black": (20, 20, 20),
@@ -221,6 +221,23 @@ class GuiRenderer:
             return None
         return int(digits)
 
+    def movement_sets(self, result: SimulationResult) -> list[set[int]]:
+        """Return the set of drone ids moving at every transition.
+
+        The element at index k is the set of drones whose positions
+        change between `states[k]` and `states[k + 1]`.
+        """
+        movements: list[set[int]] = []
+        for moves in result.turns:
+            ids: set[int] = set()
+            for token in moves:
+                head, _, _ = token.partition("-")
+                drone_id = self._drone_id_of(head)
+                if drone_id is not None:
+                    ids.add(drone_id)
+            movements.append(ids)
+        return movements
+
     def center_of(self, logical: str) -> tuple[float, float]:
         """Pixel center of a zone, or link midpoint for transits."""
         position = self.positions.get(logical)
@@ -292,13 +309,25 @@ class GuiRenderer:
 
 
 class PygameVisualizer:
-    """Interactive pygame window replaying the simulation."""
+    """Interactive pygame window replaying the simulation.
+
+    Drone movements are interpolated between turns so every glide is
+    clearly visible, and the reading speed is adjustable.
+    """
+
+    SPEEDS: list[tuple[str, int]] = [
+        ("lent", 1500),
+        ("normal", 900),
+        ("rapide", 500),
+        ("turbo", 250),
+    ]
 
     def __init__(self, instance: Instance, result: SimulationResult) -> None:
         self.instance = instance
         self.result = result
         self.renderer = GuiRenderer(instance)
         self.states = self.renderer.replay_states(result)
+        self.movements = self.renderer.movement_sets(result)
 
     def run(self) -> None:
         """Run the replay loop until the window is closed."""
@@ -309,10 +338,14 @@ class PygameVisualizer:
         pygame.display.set_caption(WINDOW_CAPTION)
         font = pygame.font.SysFont(None, 22)
         clock = pygame.time.Clock()
+        last = len(self.states) - 1
         index = 0
         playing = True
+        speed_level = 1
         running = True
+        progress = 0.0
         while running:
+            elapsed = clock.tick(60)
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
@@ -321,17 +354,35 @@ class PygameVisualizer:
                         running = False
                     elif event.key == pygame.K_RIGHT:
                         playing = False
-                        index = min(index + 1, len(self.states) - 1)
+                        progress = 0.0
+                        if index < last:
+                            index += 1
                     elif event.key == pygame.K_LEFT:
                         playing = False
+                        progress = 0.0
                         index = max(index - 1, 0)
                     elif event.key == pygame.K_SPACE:
+                        if index >= last:
+                            index = 0
                         playing = not playing
-            if playing and index < len(self.states) - 1:
-                index += 1
-            self._draw(screen, font, pygame, index)
+                        progress = 0.0
+                    elif event.key == pygame.K_UP:
+                        speed_level = min(
+                            speed_level + 1, len(self.SPEEDS) - 1
+                        )
+                    elif event.key == pygame.K_DOWN:
+                        speed_level = max(speed_level - 1, 0)
+            if playing and index < last:
+                progress += elapsed / self.SPEEDS[speed_level][1]
+                if progress >= 1.0:
+                    progress = 0.0
+                    index = min(index + 1, last)
+            elif index >= last:
+                progress = 1.0
+            else:
+                progress = 0.0
+            self._draw(screen, font, pygame, index, progress, speed_level)
             pygame.display.flip()
-            clock.tick(10)
         pygame.quit()
 
     @staticmethod
@@ -346,8 +397,16 @@ class PygameVisualizer:
             ) from error
         return pygame
 
-    def _draw(self, screen: Any, font: Any, pygame: Any, index: int) -> None:
-        """Paint one turn of the simulation on the window."""
+    def _draw(
+        self,
+        screen: Any,
+        font: Any,
+        pygame: Any,
+        index: int,
+        progress: float,
+        speed_level: int,
+    ) -> None:
+        """Paint the current (interpolated) frame of the simulation."""
         palette = self.renderer.palette
         screen.fill(palette.BACKGROUND)
         for first, second in self.renderer.links:
@@ -367,20 +426,39 @@ class PygameVisualizer:
             )
             screen.blit(label, label_rect)
         state = self.states[index]
-        for drone_id, spot in self.renderer.drone_spots(state).items():
+        target = min(index + 1, len(self.states) - 1)
+        nearest = state if progress < 0.5 else self.states[target]
+        starts = self.renderer.drone_spots(state)
+        ends = self.renderer.drone_spots(self.states[target])
+        movers: set[int] = set()
+        if index < len(self.movements):
+            movers = self.movements[index]
+        for drone_id, start in starts.items():
+            end = ends.get(drone_id, start)
+            spot = (
+                start[0] + (end[0] - start[0]) * progress,
+                start[1] + (end[1] - start[1]) * progress,
+            )
             color = palette.DRONE
-            if state[drone_id] not in self.renderer.positions:
+            if nearest[drone_id] not in self.renderer.positions:
                 color = palette.IN_FLIGHT
+            if progress > 0.0 and drone_id in movers:
+                pygame.draw.circle(screen, palette.MOVED, spot,
+                                   GuiRenderer.DRONE_RADIUS + 5, 2)
             pygame.draw.circle(screen, palette.DRONE_EDGE, spot,
                                GuiRenderer.DRONE_RADIUS)
             pygame.draw.circle(screen, color, spot,
                                GuiRenderer.DRONE_RADIUS - 2)
+        speed_name = self.SPEEDS[speed_level][0]
         header = font.render(
-            f"Fly-in - turn {index}/{len(self.states) - 1}", True,
+            f"Fly-in - tour {index}/{len(self.states) - 1}", True,
             palette.TEXT
         )
         screen.blit(header, (16, 12))
-        footer = font.render(FOOTER_TEXT, True, palette.TEXT)
+        footer = font.render(
+            f"{FOOTER_TEXT}  - vitesse: {speed_name}",
+            True, palette.TEXT,
+        )
         screen.blit(footer, (16, self.renderer.canvas_size()[1] - 30))
 
 
