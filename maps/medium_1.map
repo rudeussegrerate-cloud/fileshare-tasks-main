@@ -1,0 +1,15 @@
+# Medium map 1: dead end trap with 5 drones (target <= 12 turns)
+nb_drones: 5
+start_hub: start 0 2 [color=green]
+end_hub: end 8 2 [color=yellow]
+hub: hub1 2 2 [max_drones=3 color=blue]
+hub: hub2 4 2 [max_drones=3 color=blue]
+hub: hub3 6 2 [max_drones=3 color=blue]
+hub: trap 4 5 [zone=blocked color=gray]
+hub: lure 6 5 [color=gray]
+connection: start-hub1
+connection: hub1-hub2
+connection: hub2-hub3
+connection: hub3-end
+connection: hub2-lure
+connection: lure-trap

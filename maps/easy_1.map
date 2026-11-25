@@ -1,0 +1,13 @@
+# Easy map 1: linear path with 2 drones (target <= 6 turns)
+nb_drones: 2
+start_hub: start 0 0 [color=green]
+end_hub: end 5 0 [color=yellow]
+hub: hill 1 0 [color=blue]
+hub: ridge 2 0 [color=blue]
+hub: valley 3 0 [color=blue]
+hub: slope 4 0 [color=blue]
+connection: start-hill
+connection: hill-ridge
+connection: ridge-valley
+connection: valley-slope
+connection: slope-end

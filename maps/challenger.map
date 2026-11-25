@@ -1,0 +1,127 @@
+# Challenger map: The Impossible Dream with 25 drones
+# (reference record: 45 turns)
+nb_drones: 25
+start_hub: start 0 6 [color=green]
+end_hub: end 14 8 [color=yellow]
+hub: ur0x2 2 8 [max_drones=2 color=blue]
+hub: ur0x3 3 8 [max_drones=2 color=blue]
+hub: ur0x4 4 8 [max_drones=2 color=blue]
+hub: ur0x5 5 8 [max_drones=2 color=blue]
+hub: ur0x6 6 8 [max_drones=2 color=blue]
+hub: ur0x7 7 8 [max_drones=2 color=blue]
+hub: ur0x8 8 8 [max_drones=2 color=blue]
+hub: ur0x9 9 8 [max_drones=2 color=blue]
+hub: ur0x10 10 8 [max_drones=2 color=blue]
+hub: ur0x11 11 8 [max_drones=2 color=blue]
+hub: ur1x11 11 6 [max_drones=2 color=blue]
+hub: ur1x10 10 6 [max_drones=2 color=blue]
+hub: ur1x9 9 6 [max_drones=2 color=blue]
+hub: ur1x8 8 6 [max_drones=2 color=blue]
+hub: ur1x7 7 6 [max_drones=2 color=blue]
+hub: ur1x6 6 6 [max_drones=2 color=blue]
+hub: ur1x5 5 6 [max_drones=2 color=blue]
+hub: ur1x4 4 6 [max_drones=2 color=blue]
+hub: ur1x3 3 6 [max_drones=2 color=blue]
+hub: ur1x2 2 6 [max_drones=2 color=blue]
+hub: ur2x2 2 4 [max_drones=2 color=blue]
+hub: ur2x3 3 4 [max_drones=2 color=blue]
+hub: ur2x4 4 4 [max_drones=2 color=blue]
+hub: ur2x5 5 4 [max_drones=2 color=blue]
+hub: ur2x6 6 4 [max_drones=2 color=blue]
+hub: ur2x7 7 4 [max_drones=2 color=blue]
+hub: ur2x8 8 4 [max_drones=2 color=blue]
+hub: ur2x9 9 4 [max_drones=2 color=blue]
+hub: ur2x10 10 4 [max_drones=2 color=blue]
+hub: ur2x11 11 4 [max_drones=2 color=blue]
+connection: ur0x2-ur0x3
+connection: ur0x3-ur0x4
+connection: ur0x4-ur0x5
+connection: ur0x5-ur0x6
+connection: ur0x6-ur0x7
+connection: ur0x7-ur0x8
+connection: ur0x8-ur0x9
+connection: ur0x9-ur0x10
+connection: ur0x10-ur0x11
+connection: ur1x11-ur1x10
+connection: ur1x10-ur1x9
+connection: ur1x9-ur1x8
+connection: ur1x8-ur1x7
+connection: ur1x7-ur1x6
+connection: ur1x6-ur1x5
+connection: ur1x5-ur1x4
+connection: ur1x4-ur1x3
+connection: ur1x3-ur1x2
+connection: ur2x2-ur2x3
+connection: ur2x3-ur2x4
+connection: ur2x4-ur2x5
+connection: ur2x5-ur2x6
+connection: ur2x6-ur2x7
+connection: ur2x7-ur2x8
+connection: ur2x8-ur2x9
+connection: ur2x9-ur2x10
+connection: ur2x10-ur2x11
+connection: start-ur0x2
+connection: ur0x11-ur1x11
+connection: ur1x2-ur2x2
+connection: ur2x11-end
+hub: dr0x2 2 16 [max_drones=2 color=blue]
+hub: dr0x3 3 16 [max_drones=2 color=blue]
+hub: dr0x4 4 16 [max_drones=2 color=blue]
+hub: dr0x5 5 16 [max_drones=2 color=blue]
+hub: dr0x6 6 16 [max_drones=2 color=blue]
+hub: dr0x7 7 16 [max_drones=2 color=blue]
+hub: dr0x8 8 16 [max_drones=2 color=blue]
+hub: dr0x9 9 16 [max_drones=2 color=blue]
+hub: dr0x10 10 16 [max_drones=2 color=blue]
+hub: dr0x11 11 16 [max_drones=2 color=blue]
+hub: dr1x11 11 14 [max_drones=2 color=blue]
+hub: dr1x10 10 14 [max_drones=2 color=blue]
+hub: dr1x9 9 14 [max_drones=2 color=blue]
+hub: dr1x8 8 14 [max_drones=2 color=blue]
+hub: dr1x7 7 14 [max_drones=2 color=blue]
+hub: dr1x6 6 14 [max_drones=2 color=blue]
+hub: dr1x5 5 14 [max_drones=2 color=blue]
+hub: dr1x4 4 14 [max_drones=2 color=blue]
+hub: dr1x3 3 14 [max_drones=2 color=blue]
+hub: dr1x2 2 14 [max_drones=2 color=blue]
+hub: dr2x2 2 12 [max_drones=2 color=blue]
+hub: dr2x3 3 12 [max_drones=2 color=blue]
+hub: dr2x4 4 12 [max_drones=2 color=blue]
+hub: dr2x5 5 12 [max_drones=2 color=blue]
+hub: dr2x6 6 12 [max_drones=2 color=blue]
+hub: dr2x7 7 12 [max_drones=2 color=blue]
+hub: dr2x8 8 12 [max_drones=2 color=blue]
+hub: dr2x9 9 12 [max_drones=2 color=blue]
+hub: dr2x10 10 12 [max_drones=2 color=blue]
+hub: dr2x11 11 12 [max_drones=2 color=blue]
+connection: dr0x2-dr0x3
+connection: dr0x3-dr0x4
+connection: dr0x4-dr0x5
+connection: dr0x5-dr0x6
+connection: dr0x6-dr0x7
+connection: dr0x7-dr0x8
+connection: dr0x8-dr0x9
+connection: dr0x9-dr0x10
+connection: dr0x10-dr0x11
+connection: dr1x11-dr1x10
+connection: dr1x10-dr1x9
+connection: dr1x9-dr1x8
+connection: dr1x8-dr1x7
+connection: dr1x7-dr1x6
+connection: dr1x6-dr1x5
+connection: dr1x5-dr1x4
+connection: dr1x4-dr1x3
+connection: dr1x3-dr1x2
+connection: dr2x2-dr2x3
+connection: dr2x3-dr2x4
+connection: dr2x4-dr2x5
+connection: dr2x5-dr2x6
+connection: dr2x6-dr2x7
+connection: dr2x7-dr2x8
+connection: dr2x8-dr2x9
+connection: dr2x9-dr2x10
+connection: dr2x10-dr2x11
+connection: start-dr0x2
+connection: dr0x11-dr1x11
+connection: dr1x2-dr2x2
+connection: dr2x11-end

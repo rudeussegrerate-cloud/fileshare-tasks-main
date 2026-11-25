@@ -1,0 +1,16 @@
+# Medium map 2: circular loop with 6 drones (target <= 15 turns)
+nb_drones: 6
+start_hub: start 0 3 [color=green]
+end_hub: end 8 3 [color=yellow]
+hub: west 4 3 [max_drones=1 color=blue]
+hub: n1 2 0 [max_drones=2 color=cyan]
+hub: n2 6 0 [max_drones=2 color=cyan]
+hub: s1 2 6 [max_drones=2 color=magenta]
+hub: s2 6 6 [max_drones=2 color=magenta]
+connection: start-west
+connection: west-n1
+connection: n1-n2
+connection: n2-end
+connection: west-s1
+connection: s1-s2
+connection: s2-end

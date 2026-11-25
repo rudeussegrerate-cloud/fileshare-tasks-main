@@ -1,0 +1,18 @@
+# Medium map 3: priority puzzle with 5 drones (target <= 12 turns)
+nb_drones: 5
+start_hub: start 0 2 [color=green]
+end_hub: end 8 2 [color=yellow]
+hub: prio1 2 2 [zone=priority color=green]
+hub: prio2 4 2 [zone=priority color=green max_drones=2]
+hub: prio3 6 2 [zone=priority color=green]
+hub: rough1 2 0 [zone=restricted color=red]
+hub: rough2 4 0 [zone=restricted color=red]
+hub: rough3 6 0 [zone=restricted color=red]
+connection: start-prio1
+connection: prio1-prio2
+connection: prio2-prio3
+connection: prio3-end
+connection: start-rough1
+connection: rough1-rough2
+connection: rough2-rough3
+connection: rough3-end

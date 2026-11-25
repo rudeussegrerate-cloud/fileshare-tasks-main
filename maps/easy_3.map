@@ -1,0 +1,13 @@
+# Easy map 3: basic capacity with 4 drones (target <= 6 turns)
+nb_drones: 4
+start_hub: start 0 0 [color=green]
+end_hub: end 5 0 [color=yellow]
+hub: hill 1 0 [max_drones=2 color=blue]
+hub: ridge 2 0 [max_drones=2 color=blue]
+hub: valley 3 0 [max_drones=2 color=blue]
+hub: slope 4 0 [max_drones=2 color=blue]
+connection: start-hill [max_link_capacity=2]
+connection: hill-ridge [max_link_capacity=2]
+connection: ridge-valley [max_link_capacity=2]
+connection: valley-slope [max_link_capacity=2]
+connection: slope-end [max_link_capacity=2]
