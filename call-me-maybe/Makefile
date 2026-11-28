@@ -1,5 +1,15 @@
 .PHONY: install run debug clean lint lint-strict test
 
+# On 42 school machines the home directory is too small for model
+# caches and virtual environments: route them to the goinfre volume
+# when it exists, keeping the evaluator's uv/huggingface setup working.
+GOINFRE := /goinfre/$(USER)
+ifneq ($(wildcard $(GOINFRE)/.),)
+export UV_CACHE_DIR ?= $(GOINFRE)/uv-cache
+export UV_PROJECT_ENVIRONMENT ?= $(GOINFRE)/venvs/call-me-maybe
+export HF_HOME ?= $(GOINFRE)/hf-cache
+endif
+
 install:
 	uv sync
 
