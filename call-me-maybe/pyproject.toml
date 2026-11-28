@@ -5,8 +5,11 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "huggingface-hub>=2.5.0",
     "numpy>=2.2.6",
     "pydantic>=2.14.4",
+    "torch>=2.14.1",
+    "transformers>=5.20.2",
 ]
 
 [project.scripts]

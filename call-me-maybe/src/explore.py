@@ -23,7 +23,7 @@ def main() -> None:
     print("decoded:", model.decode(ids.tolist() if hasattr(ids, "tolist") else ids))
 
     # 4. Logits: scores for EVERY possible next token
-    flat = ids.tolist() if hasattr(ids, "tolist") else ids
+    flat = ids.squeeze().tolist()
     logits = model.get_logits_from_input_ids(flat)
     print("\nnb logits:", len(logits))
     top = sorted(range(len(logits)), key=lambda i: logits[i], reverse=True)[:10]
